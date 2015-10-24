@@ -1,4 +1,9 @@
 *.swp
+verilog/
+vhdl/
+systemverilog/
+
+## auto generated
 dist
 cabal-dev
 *.o
