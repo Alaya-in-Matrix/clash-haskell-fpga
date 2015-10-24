@@ -1,4 +1,4 @@
-module Core(coreStateOutTrans) where
+module Core where
 import CLaSH.Prelude
 import Prog 
 import Decoder 
@@ -14,6 +14,11 @@ memDelay = 1
 
 initState = State (repeat 0) 0 0 0 Nothing
 
+{-# ANN topEntity
+    (defTop
+        { t_name    = "Core"
+        , t_inputs  = ["instr","keyboard","lcd_status"]
+        , t_outputs = ["addr", "lcd_display"] }) #-}
 topEntity :: Signal CoreInput -> Signal CoreOutput
 topEntity = (coreStateOutTrans coreStateTrans) `mealy` initState
 
