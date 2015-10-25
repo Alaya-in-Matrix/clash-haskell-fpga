@@ -2,8 +2,8 @@ module Queen where
 
 import CLaSH.Prelude
 
-type MaxSize = 3
-boardSize    = 3 :: IntData
+type MaxSize = 4
+boardSize    = 4 :: IntData
 type IntData = (Signed 5)
 type QNbr     = Signed 5
 type QVec a   = Vec MaxSize a
@@ -12,7 +12,7 @@ type StackElm = ( QVec QNbr
                 , QVec QNbr
                 , QNbr
                 , QNbr)
-type Stack = (Signed 5, Vec MaxSize StackElm)
+type Stack = (IntData, Vec MaxSize StackElm)
 data Cmd = Run | Stop deriving(Eq, Show)
 data Out = Out {
     solution :: Maybe (QVec QNbr)
@@ -87,3 +87,5 @@ testInput = signal Run
 samp sampNum = sampleN sampNum $ topEntity 
 
 fuck n = mapM_ print $ filter ((/= Nothing).solution) $ samp n
+
+suck n = mapM_ print $ samp n
