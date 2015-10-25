@@ -1,98 +1,78 @@
-module Queen where
-boardSize = 8 :: Int
+module QueenHardWare where
 
-safe p q d = p /= q && abs (p-q) /= d
+import CLaSH.Prelude
 
-safeAll qs p = foldl (&&) True $ zipWith (safe p) qs ds
-  where n  = length qs
-        ds = reverse $ [1..n]
+type MaxSize = 5
+type IntData = (Signed 4)
+boardSize    = 5 :: IntData
 
-(<.)::[a]->a->[a]
-(<.) xs x = xs ++ [x]
+(<~~) :: (KnownNat n) => Vec n a -> (IntData, a) -> Vec n a
+mem <~~ (idx,ele) = replace idx ele mem
 
-itn f a 0 = a
-itn f a n = itn f (f a) (n-1)
+(<-<) :: (KnownNat n) => (Vec n a, IntData) -> (a, Bool) -> (Vec n a, IntData)
+(mem,n) <-< (_, False) = (mem,n)
+(mem,n) <-< (e, True)  = (mem <~~ (n,e), (n+1))
 
-
-
--- trivial version
-queens1 0 = [[]]
-queens1 n = [qs <. p |  qs <- queens1 (n-1) , p <- [1..boardSize], safeAll qs p]
-
--- Removing explicit list :comprehension
-extentions qs = map (qs <.) $ filter (safeAll qs) [1..boardSize]
-
-queens2 0 = [[]]
-queens2 n = concat $ map extentions $ queens2 (n-1)
-
--- Removing explicit recursion
-queens3 n = itn (concat . map extentions) [[]] n
+hwFilterL :: (Default a, KnownNat n) => (a->Bool)->Vec n a -> (Vec n a, IntData)
+hwFilterL pred vec =
+    let zipped = zip vec $ map pred vec
+     in foldl (<-<) (def, 0) zipped
 
 
+indexVec :: (Num a) => Vec MaxSize a
+indexVec = iterateI (+1) 1 
 
--- fixed length list
--- two filter function that could be implemented by hardware
+type QNbr     = Signed 4
+type QVec a   = Vec MaxSize a
+type StackElm = ( QVec QNbr
+                , QNbr
+                , QVec QNbr
+                , QNbr
+                , QNbr)
+type Stack = (Signed 4, Vec 8 StackElm)
 
-hwFilter  pred xs = zip xs $ map pred xs
-
-hwFilterL pred xs =
-    let yes = filter pred xs
-        no  = filter (not . pred) xs
-     in (yes ++ no, length yes)
-
-safeF p q d = d <= 0 || (p /= q && abs (p-q) /= d)
-
-safeFAll (qs,n) p = foldl (&&) True $ zipWith (safeF p) qs ds
-  where ds = reverse [n-boardSize+1..n]
-
-(<..) :: ([Int],Int)->(Int,Bool)->([Int],Int)
-(qs,n) <.. (val, False) = (qs,-1)
-(qs,n) <.. (val, True)  = (replace n val qs, (n+1))
-
-replace idx val xs 
-  | idx >= length xs = error $ "replace " ++ show idx ++ " " ++ show val ++ " " ++ show xs
-  | otherwise        = take (idx) xs ++ [val] ++ drop (idx+1) xs
-
-extentionsF (qs,n) = map ((qs,n) <..) $ hwFilter (safeFAll (qs,n)) [1..boardSize]
-queens4 n          = itn (concat . map extentionsF) [(replicate boardSize 0,0)] n
-
-f = map fst $ filter ((== boardSize) . snd) $ queens4 boardSize
+getTop :: Stack -> StackElm
+getTop (idx, vec) = vec !! idx
+getRest :: Stack -> Stack
+getRest = pop
+pop :: Stack -> Stack
+pop (idx, vec) = (idx-1, vec)
+push :: StackElm -> Stack -> Stack
+push ele (idx, vec) = (newIdx, vec <~~ (newIdx,ele)) 
+  where newIdx = idx+1
 
 
-sim :: (s->i->(s,o)) -> s -> [i] -> [o]
-sim f s [] = []
-sim f s (i:is) = z : sim f s' is
-    where (s',z) = f s i
+safeF p q d = d <= 0 || (p /= q && abs(p-q) /= d)
 
-queensM1 s _ = (f s, s)
-    where f = concat . map extentionsF
-
-testM1 = sim queensM1 initState [0..boardSize]
-    where initState = [(replicate boardSize 0, 0)]
+safeFAll :: (QVec QNbr, QNbr) -> QNbr -> Bool
+safeFAll (qs, n) p = foldl (&&) True $ zipWith (safeF p) qs ds
+    where ds = iterateI (\x->(x-1)) n
 
 
-type Stack = [([Int],[Int])]
-queensMh :: Stack -> i -> (Stack, Maybe [Int])
-queensMh []         _ = ([],Nothing)
-queensMh (top:rest) _ = (stack', out)
-    where 
-        (qs, ps) = top -- qs ++ ps make a partial configuration
-        (n,  m)  = (length qs, length ps)
-        qs'      = qs <. (head ps) :: [Int]
-        ps'      = filter (safeAll qs') [1..boardSize] :: [Int]
-        (n', m') = (length qs', length ps')
-        top'     = (qs, tail ps)
-        nexttop  = (qs', ps')
-        stack' 
-          | n' == boardSize - 1 && m == 1            = rest                     -- all solutions based on qs is found, pop top out
-          | n' == boardSize - 1 && m >  1            = top' : rest              -- all solutions based on (qs <. (head ps)) is  founc, remove (head ps)
-          | n' <  boardSize - 1 && m == 1 && m' == 0 = rest                     -- no solutions  based on qs', so, pop top out
-          | n' <  boardSize - 1 && m == 1 && m' >  0 = nexttop : rest           -- solutions based on (qs,ps) is equal to solutions based on (qs' ps')
-          | n' <  boardSize - 1 && m >  1 && m' == 0 = top': rest               -- no solutions based on qs', but qs is not empty, continue searching
-          | n' <  boardSize - 1 && m >  1 && m' >  0 = nexttop : top' : rest    -- some possibly new solutions
-        out 
-          | n' == boardSize - 1 && m' == 1  = Just $ qs' ++ ps'
-          | otherwise                       = Nothing
+fuck = queensM `mealy` initStack
+initStack = (0, repeat (def,0,(iterateI (+1) 1),boardSize,0)) :: Stack
 
-testMh = filter (/= Nothing) $ sim queensMh initStack [1..50000]
-    where initStack = [([],[1..boardSize])]
+topEntity = fuck
+
+data Input = Run | Stop deriving(Eq, Show)
+queensM :: Stack -> Input -> (Stack, Maybe (QVec QNbr))
+queensM stack Stop = (stack, Nothing)
+queensM stack _    = (stack', out)
+  where 
+    top    = getTop stack  :: StackElm
+    rest   = getRest stack :: Stack
+    (qs, n, ps, m, k) = top
+    (qs', n') = (qs <~~ (n, ps!!k), (n+1))
+    (ps', m') = hwFilterL (safeFAll (qs',n')) indexVec
+    top'      = (qs, n, ps, m, (k+1))
+    nexttop   = (qs',(n+1),ps',m',0)
+    stack' 
+      | n' == (boardSize-1) && k == (m-1)             = rest
+      | n' == (boardSize-1) && k <  (m-1)             = push top' rest
+      | n' <  (boardSize-1) && k == (m-1) && m' == 0  = rest
+      | n' <  (boardSize-1) && k == (m-1) && m' >  0  = push nexttop rest 
+      | n' <  (boardSize-1) && k <  (m-1) && m' == 0  = push top' rest
+      | n' <  (boardSize-1) && k <  (m-1) && m' >  0  = push nexttop $ push top' rest
+    out 
+      | n == (boardSize-2) && m' == 1 = Just $ (qs' <~~ (n', ps' !! 0))
+      | otherwise                     = Nothing
