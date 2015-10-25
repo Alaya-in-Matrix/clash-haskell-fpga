@@ -1,10 +1,24 @@
-module QueenHardWare where
+module Queen where
 
 import CLaSH.Prelude
 
-type MaxSize = 5
-type IntData = (Signed 4)
-boardSize    = 5 :: IntData
+type MaxSize = 8
+type IntData = (Signed 5)
+type QNbr     = Signed 5
+type QVec a   = Vec MaxSize a
+type StackElm = ( QVec QNbr
+                , QNbr
+                , QVec QNbr
+                , QNbr
+                , QNbr)
+type Stack = (Signed 5, Vec MaxSize StackElm)
+data Cmd = Run | Stop deriving(Eq, Show)
+data Out = Out {
+    solution :: Maybe (QVec QNbr)
+    , finish :: Bool
+} deriving(Eq, Show)
+
+boardSize    = 8 :: IntData
 
 (<~~) :: (KnownNat n) => Vec n a -> (IntData, a) -> Vec n a
 mem <~~ (idx,ele) = replace idx ele mem
@@ -22,15 +36,8 @@ hwFilterL pred vec =
 indexVec :: (Num a) => Vec MaxSize a
 indexVec = iterateI (+1) 1 
 
-type QNbr     = Signed 4
-type QVec a   = Vec MaxSize a
-type StackElm = ( QVec QNbr
-                , QNbr
-                , QVec QNbr
-                , QNbr
-                , QNbr)
-type Stack = (Signed 4, Vec 8 StackElm)
-
+size :: Stack -> IntData
+size = (+1) . fst
 getTop :: Stack -> StackElm
 getTop (idx, vec) = vec !! idx
 getRest :: Stack -> Stack
@@ -48,16 +55,9 @@ safeFAll :: (QVec QNbr, QNbr) -> QNbr -> Bool
 safeFAll (qs, n) p = foldl (&&) True $ zipWith (safeF p) qs ds
     where ds = iterateI (\x->(x-1)) n
 
-
-fuck = queensM `mealy` initStack
-initStack = (0, repeat (def,0,(iterateI (+1) 1),boardSize,0)) :: Stack
-
-topEntity = fuck
-
-data Input = Run | Stop deriving(Eq, Show)
-queensM :: Stack -> Input -> (Stack, Maybe (QVec QNbr))
-queensM stack Stop = (stack, Nothing)
-queensM stack _    = (stack', out)
+queensM :: Stack -> Cmd -> (Stack, Out)
+queensM st@(-1,_) _ = (st,Out Nothing True)
+queensM stack     _ = (stack', out)
   where 
     top    = getTop stack  :: StackElm
     rest   = getRest stack :: Stack
@@ -74,5 +74,16 @@ queensM stack _    = (stack', out)
       | n' <  (boardSize-1) && k <  (m-1) && m' == 0  = push top' rest
       | n' <  (boardSize-1) && k <  (m-1) && m' >  0  = push nexttop $ push top' rest
     out 
-      | n == (boardSize-2) && m' == 1 = Just $ (qs' <~~ (n', ps' !! 0))
-      | otherwise                     = Nothing
+      | n == (boardSize-2) && m' == 1 = Out (Just $ (qs' <~~ (n', ps' !! 0))) False
+      | otherwise                     = Out Nothing False
+
+initStack = (0, repeat (def,0,(iterateI (+1) 1),boardSize,0)) :: Stack
+
+topEntity = queensM `mealy` initStack
+
+testInput :: Signal Cmd
+testInput = signal Run
+
+samp sampNum = sampleN sampNum $ topEntity testInput
+
+fuck n = mapM_ print $ filter ((/= Nothing).solution) $ samp n
