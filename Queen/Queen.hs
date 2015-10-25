@@ -2,7 +2,8 @@ module Queen where
 
 import CLaSH.Prelude
 
-type MaxSize = 8
+type MaxSize = 3
+boardSize    = 3 :: IntData
 type IntData = (Signed 5)
 type QNbr     = Signed 5
 type QVec a   = Vec MaxSize a
@@ -18,7 +19,6 @@ data Out = Out {
     , finish :: Bool
 } deriving(Eq, Show)
 
-boardSize    = 8 :: IntData
 
 (<~~) :: (KnownNat n) => Vec n a -> (IntData, a) -> Vec n a
 mem <~~ (idx,ele) = replace idx ele mem
@@ -79,11 +79,11 @@ queensM stack     _ = (stack', out)
 
 initStack = (0, repeat (def,0,(iterateI (+1) 1),boardSize,0)) :: Stack
 
-topEntity = queensM `mealy` initStack
+topEntity = (queensM `mealy` initStack) (signal Run)
 
 testInput :: Signal Cmd
 testInput = signal Run
 
-samp sampNum = sampleN sampNum $ topEntity testInput
+samp sampNum = sampleN sampNum $ topEntity 
 
 fuck n = mapM_ print $ filter ((/= Nothing).solution) $ samp n
