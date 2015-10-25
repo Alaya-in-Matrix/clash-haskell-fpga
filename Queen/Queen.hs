@@ -2,8 +2,8 @@ module Queen where
 
 import CLaSH.Prelude
 
-type MaxSize = 8
-boardSize    = 8 :: IntData
+type MaxSize = 5
+boardSize    = 5 :: IntData
 type IntData = (Signed 8)
 type QNbr     = Signed 8
 type QVec a   = Vec MaxSize a
@@ -114,6 +114,19 @@ receiver = unbundle . (recvStateMachine `mealy` def)
 
 
 initStack = (0, repeat (def,0,(iterateI (+1) 1),boardSize,0)) :: Stack
+
+{-# ANN topEntity
+  (defTop
+     { t_name = "Queen"
+     , t_outputs = [ "finished"
+
+                   , "digit1"
+                   , "digit2"
+                   , "digit3"
+                   , "digit4"
+                   , "digit5"
+
+                   , "solution_number"] }) #-}
 
 topEntity = receiver solutions 
 
