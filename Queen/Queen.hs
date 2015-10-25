@@ -2,10 +2,10 @@ module Queen where
 
 import CLaSH.Prelude
 
-type MaxSize = 4
-boardSize    = 4 :: IntData
-type IntData = (Signed 5)
-type QNbr     = Signed 5
+type MaxSize = 8
+boardSize    = 8 :: IntData
+type IntData = (Signed 8)
+type QNbr     = Signed 8
 type QVec a   = Vec MaxSize a
 type StackElm = ( QVec QNbr
                 , QNbr
@@ -77,15 +77,57 @@ queensM stack     _ = (stack', out)
       | n == (boardSize-2) && m' == 1 = Out (Just $ (qs' <~~ (n', ps' !! 0))) False
       | otherwise                     = Out Nothing False
 
+
+
+data RecvState  = RS {
+    isFinish :: Bool                -- whether finished
+    , freqDivid :: (Unsigned 16)    -- factor to divide clock
+    , solNum :: IntData             -- how many solutions are there
+    , dispCounter :: IntData        -- which solution to display
+    , solMem :: Vec 20 (QVec QNbr)  -- mem to store all solutions, 
+} deriving(Eq, Show)
+type RecvOut = (Bool, (QVec QNbr), IntData)
+
+defRecvOut = (False, def, 0)
+defFreqDiv = 999
+
+
+recvStateMachine :: RecvState -> Out -> (RecvState, RecvOut)
+recvStateMachine rs@(RS False fd sn dp sm) rIn@(Out Nothing  False) = (rs,  defRecvOut) -- calc not finished, no new solution
+recvStateMachine rs@(RS False fd sn dp sm) rIn@(Out (Just s) False) = (rs', defRecvOut) -- calc not finished, find new solution store solutions, add solution counter
+  where rs' = RS False fd (sn+1) 0 (replace sn s sm)
+recvStateMachine rs@(RS False _  sn _ sm) rIn@(Out _ True) = (rs', out) -- go into display circle
+  where rs' = RS True defFreqDiv sn 0 sm
+        out = (True, (sm !! 0), sn)
+recvStateMachine rs@(RS True 0  sn dp sm) _ = (rs', out) -- display new solution
+    where rs'   = RS True defFreqDiv sn newDp sm
+          newDp = if (dp == (sn-1)) then 0 else (dp + 1)
+          out   = (True, (sm !! dp), sn)
+recvStateMachine rs@(RS True fd sn dp sm) _ = (rs', out) 
+    where rs' = RS True (fd-1) sn dp sm
+          out = (True, (sm !! dp), sn)
+
+instance Default RecvState where
+    def = RS False defFreqDiv 0 0 def
+
+receiver = unbundle . (recvStateMachine `mealy` def)
+
+
 initStack = (0, repeat (def,0,(iterateI (+1) 1),boardSize,0)) :: Stack
 
-topEntity = (queensM `mealy` initStack) (signal Run)
+topEntity = receiver solutions 
 
-testInput :: Signal Cmd
-testInput = signal Run
+solutions = (queensM `mealy` initStack) (signal Run) :: Signal Out
 
-samp sampNum = sampleN sampNum $ topEntity 
+-- f0 (a,b,c) = a
+-- f1 (a,b,c) = b
+-- f2 (a,b,c) = c
 
-fuck n = mapM_ print $ filter ((/= Nothing).solution) $ samp n
+-- testInput :: Signal Cmd
+-- testInput = signal Run
 
-suck n = mapM_ print $ samp n
+-- samp sampNum = sampleN sampNum $ topEntity 
+
+-- fuck n = mapM_ print $ filter ((/= Nothing).solution) $ samp n
+
+-- suck n = mapM_ print $ samp n
