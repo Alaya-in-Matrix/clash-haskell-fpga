@@ -2,8 +2,8 @@ module Queen where
 
 import CLaSH.Prelude
 
-type MaxSize = 4
-boardSize    = 4 :: IntData
+type MaxSize = 5
+boardSize    = 5:: IntData
 type IntData = (Signed 4)
 type QNbr     = Signed 4
 type QVec a   = Vec MaxSize a
@@ -12,7 +12,8 @@ type StackElm = ( QVec QNbr
                 , QVec QNbr
                 , QNbr
                 , QNbr)
-type Stack = (IntData, Vec MaxSize StackElm)
+type Stack   = (IntData, Vec MaxSize StackElm)
+type SegDisp = Unsigned 8
 data Cmd = Run | Stop deriving(Eq, Show)
 data Out = Out {
     solution :: Maybe (QVec QNbr)
@@ -80,9 +81,10 @@ queensM stack     _ = (stack', out)
 initStack = (0, repeat (def,0,(iterateI (+1) 1),boardSize,0)) :: Stack
 
 
+
 topEntity = fmap trans $ fetchOut $ queens $ signal Run
-    where trans :: QVec QNbr -> QVec (Unsigned 8)
-          trans = map (toEnum . fromEnum)
+    where trans :: QVec QNbr -> QVec SegDisp
+          trans = map segDecoder
 queens    = queensM `mealy` initStack
 
 fetchOut :: Signal Out -> Signal (QVec QNbr)
@@ -98,6 +100,19 @@ fetchSM :: QVec QNbr -> Out -> (QVec QNbr, QVec QNbr)
 fetchSM state (Out _ True)         = (state, state)
 fetchSM state (Out Nothing  False) = (state, state)
 fetchSM state (Out (Just v) False) = (v,v)
+
+segDecoder :: QNbr -> SegDisp
+segDecoder n 
+  | n == 0    = 0b11111100
+  | n == 1    = 0b01100000
+  | n == 2    = 0b11011010
+  | n == 3    = 0b11110010
+  | n == 4    = 0b01100110
+  | n == 5    = 0b10110110
+  | n == 6    = 0b10111110
+  | n == 7    = 0b11100000
+  | otherwise = 0
+
 -- data RecvState  = RS {
 --     isFinish :: Bool                -- whether finished
 --     , freqDivid :: (Unsigned 10)    -- factor to divide clock
