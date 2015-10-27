@@ -32,21 +32,12 @@ push ele (QV list len) = QV newList (len+1)
   where newList = replace len ele list
 
 q <~~ e         = push e q -- won't check index violation
-q <-< (e, b)    = if b then q <~~ e else q
 
 hwFilterL :: (Default a) => (a->Bool)->QVec a-> QVec a
 hwFilterL pred qv@(QV list len) = 
     let filtered = imap (\i e -> (len > fromIntegral i) && pred e) list
-     in foldl (<-<) def $ zip list filtered
+     in foldl (\qs (e,b) -> if b then qs <~~ e else qs) def $ zip list filtered
 
-
-qmap :: (a->b) -> QVec a -> QVec b
-qmap f (QV qv len) = QV (map f qv) len
-
-qfoldl :: (a -> b -> a) -> a -> QVec b -> a
-qfoldl f x qv@(QV vec sz) = ifoldl newf x vec
-  where newf = \curr id newv -> if (fromIntegral id) < sz then f curr newv
-                                                          else curr
 safeAll :: QVec QInt -> QInt -> Bool
 -- safeAll qs@(QV qlist qlen) p = foldl (&&) True mapped -- perhaps I need to use foldl?
 safeAll qs@(QV qlist qlen) p = fold (&&) mapped -- perhaps I need to use foldl?
