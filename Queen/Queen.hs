@@ -5,9 +5,14 @@ import CLaSH.Sized.Vector
 import Debug.Trace
 import Data.List((++))
 
-type MaxSize = 8 -- denote the max size allowed for a vertor(list)
+type MaxSize = 5 -- denote the max size allowed for a vertor(list)
+indexVec :: Vec MaxSize QInt
+indexVec = 1:>2:>3:>4:>5:>Nil
+
+
 type Size    = Unsigned 4 -- size of QVec
 type QInt    = Unsigned 4 -- regular int type
+type SegDisp = Unsigned 8 -- type for display of seg
 data QVec a  = QV {
     list  :: Vec MaxSize a
     , len :: Size
@@ -15,12 +20,6 @@ data QVec a  = QV {
 
 instance (Default a) => Default (QVec a) where
     def = QV def 0
-
-indexVec :: Vec MaxSize QInt
-indexVec = 1:>2:>3:>4:>5:>6:>7:>8:>Nil
-
-testQv :: QVec Int
-testQv = QV $(v [3::Int,1,4,1,5,9,2,6]) 8
 
 topEle :: QVec a -> a -- won't check empty stack
 topEle qv = (list qv) !! (len qv - 1)
@@ -107,14 +106,56 @@ queenStateM qst@(QS boardSize stack solNum) newSize
 
 queens = queenStateM `mealy` (initQState 0)
 
-topEntity :: Signal Size -> Signal Out
-topEntity = queens
 
-testInput :: Signal Size
-testInput = pure 8
+-- data Out = Out {
+--     solution :: Maybe (QVec QInt)
+--     , finish :: Bool
+--     , counter :: Unsigned 8
+-- } deriving(Eq, Show)
 
-samp n = sampleN n $ topEntity testInput
 
-fuck n = mapM_ print $ filter ((/= Nothing) . solution) $ sampleN n $ topEntity testInput
-suck n = mapM_ print $ sampleN n $ topEntity testInput
-duck n = mapM_ (\i->print "") $ sampleN n $ topEntity testInput
+-- {-# ANN topEntity
+--   (defTop
+--      { t_name = "Queen"
+--      , t_outputs = [ "finished"
+
+--                    , "digit1"
+--                    , "digit2"
+--                    , "digit3"
+--                    , "digit4"
+--                    , "digit5"
+
+--                    , "solution_number"] }) #-}
+
+topEntity :: Signal (Vec MaxSize SegDisp)
+topEntity = fetchOut $ queens (signal 5)
+-- topEntity :: Signal Size -> Signal Out
+-- topEntity = (fmap trans $ fetchOut $ queens size) $ (signal 5)
+
+
+fetchOut :: Signal Out -> Signal (Vec MaxSize SegDisp)
+fetchOut = fetchSM `mealy` (segEncoder def)
+
+fetchSM :: (Vec MaxSize SegDisp) -> Out -> (Vec MaxSize SegDisp, Vec MaxSize SegDisp)
+fetchSM state (Out _ True _)     = (state, state)
+fetchSM state (Out Nothing _ _)  = (state, state)
+fetchSM state (Out (Just v) _ _) = (seg,seg)
+    where seg = segEncoder v
+
+segEncoder :: QVec QInt -> Vec MaxSize SegDisp
+segEncoder (QV vec _) = map encode vec
+  where encode n 
+          | n == 0    = 0b11111100
+          | n == 1    = 0b01100000
+          | n == 2    = 0b11011010
+          | n == 3    = 0b11110010
+          | n == 4    = 0b01100110
+          | n == 5    = 0b10110110
+          | n == 6    = 0b10111110
+          | n == 7    = 0b11100000
+          | otherwise = 0b11111100 -- 0
+
+-- samp n = sampleN n $ topEntity 
+-- fuck n = mapM_ print $ filter ((/= Nothing) . solution) $ sampleN n $ topEntity 
+-- suck n = mapM_ print $ sampleN n $ topEntity 
+-- duck n = mapM_ (\i->print "") $ sampleN n $ topEntity 
