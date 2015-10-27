@@ -23,8 +23,8 @@ instance (Default a) => Default (QVec a) where
 instance (Show a) => Show (QVec a) where
     show (QV vec len) = "QVec " +++ (show $ L.take (fromIntegral len) (toList vec))
 
-topEle :: QVec a -> a -- won't check empty stack
-topEle qv = (list qv) !! (len qv - 1)
+top :: QVec a -> a -- won't check empty stack
+top qv = (list qv) !! (len qv - 1)
 
 pop :: QVec a -> QVec a  -- won't check empty stack
 pop (QV list len) = QV list (len - 1)

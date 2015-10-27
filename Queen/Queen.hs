@@ -12,51 +12,63 @@ safeAll qs@(QV qlist qlen) p = fold (&&) mapped -- perhaps I need to use foldl?
                       | otherwise = (p /= q && (delta /= qlen - fromIntegral idx))
                           where delta = max p q - min p q
 
-data Out = Out {
-    solution :: Maybe (QVec QInt)
-    , finish :: Bool
-    , counter :: Unsigned 8
-} deriving(Eq, Show)
-
 type Stack  = QVec (QVec QInt, QVec QInt)
-data QState = QS {boardSize :: Size, stack::Stack, solNum::Unsigned 8} deriving(Eq, Show)
+data QState = QS {
+    boardSize :: Maybe Size
+    , stack::Stack
+    , errFlag :: Bool
+} deriving(Eq, Show)
+data QOut   = QOut {
+    solution  :: Maybe (QVec QInt)
+    , errOut  :: Bool
+} deriving(Eq, Show)
+type QIn = Maybe Size
 
-initQState iSize = QS iSize (def <~~ (def, QV indexVec iSize)) 0
-
-queenStateM :: QState -> Size -> (QState, Out)
-queenStateM qst@(QS boardSize stack solNum) newSize
-  | boardSize /= newSize = (initQState newSize, Out Nothing False 0)
-  | len stack == 0       = (qst, Out Nothing True solNum)
-  | otherwise            = (QS boardSize stack' solNum', out)
-      where (qs,ps) = topEle stack
-            rest    = pop    stack
-            qs'     = qs <~~ (topEle ps)
-            ps'     = hwFilterL (safeAll qs') (QV indexVec boardSize)
-            top'    = (qs, pop ps)
-            newtop  = (qs', ps')
-            solNum'
-              | len qs' == boardSize = solNum + 1
-              | otherwise            = solNum
-            out 
-              | len qs' == boardSize = Out (return qs') False solNum'
-              | otherwise            = Out Nothing False solNum'
-            stack' 
-              | len qs' >= boardSize = if (len ps <= 1)  then (rest         ) else (rest <~~ top')   -- find a valid solution
-              | len ps <= 1          = if (len ps' == 0) then (rest         ) else (rest <~~ newtop) -- find a partial configuration, and no more ps
-              | otherwise            = if (len ps' == 0) then (rest <~~ top') else (rest <~~ top' <~~ newtop) -- find a partial configuration, and thera're still some elements in ps
+instance Default QState where
+    def = QS { boardSize = Nothing
+             , stack   = def
+             , errFlag = False 
+             }
+instance Default QOut where
+    def = QOut { solution  = Nothing
+               , errOut  = False 
+               }
 
 
+-- After "Reset" is pressed, qsm waits for input, if input is Nothing, then continue waiting
+-- once the input is (Just size), then initialize state, and ignore further input
+queenMealyM :: QState -> QIn -> (QState, QOut)
+queenMealyM qs@(QS _       _  True)  _        = (def{errFlag=True},  def{errOut=True}) -- We got errors!
+queenMealyM qs@(QS Nothing _  False) Nothing  = (def,def)
+queenMealyM qs@(QS Nothing _  False) (Just s) = (initState, def)
+  where initState = def{boardSize = Just s, stack = (def <~~ (def, QV indexVec s))}
+queenMealyM qs@(QS (Just bSz) stack False) _  
+  | len stack == 0 = (def, def) -- finished
+  | otherwise      =
+      let (qs, ps) = top stack
+          rest     = pop stack
+          qs'      = qs <~~ (top ps)
+          ps'      = hwFilterL (safeAll qs') (QV indexVec bSz)
+          top'     = (qs,pop ps)
+          newtop   = (qs', ps')
+          (err, stack') 
+            | len qs' == bSz && (len ps == 1)                   = (False, rest)
+            | len qs' == bSz && (len ps >  1)                   = (False, rest <~~ top')
+            | len qs' <  bSz && (len ps == 1) && (len ps' == 0) = (False, rest)
+            | len qs' <  bSz && (len ps == 1) && (len ps' >  0) = (False, rest <~~ newtop)
+            | len qs' <  bSz && (len ps >  1) && (len ps' == 0) = (False, rest <~~ top')
+            | len qs' <  bSz && (len ps >  1) && (len ps' >  0) = (False, rest <~~ top' <~~ newtop)
+            | otherwise = (True, def)
+          out  
+            | len qs' == bSz = QOut{solution = Just qs', errOut = err}
+            | otherwise      = QOut{solution = Nothing,  errOut = err}
+          state' = QS (Just bSz) stack' err
+       in (state', out)
 
+queens    = queenMealyM `mealy` def
+testIn    = foldr register (signal (Just 4 :: QIn)) $ replicate d10 Nothing
+topEntity = trans <$> queens testIn
+    where trans :: QOut -> (Bool, Vec MaxSize SegDisp)
+          trans (QOut Nothing  err) = (err, segV (def::Vec MaxSize QInt))
+          trans (QOut (Just v) err) = (err, segV $ list v)
 
-queens = queenStateM `mealy` (initQState 0)
-
-topEntity :: Signal (Vec MaxSize SegDisp)
-topEntity = fetchOut $ queens (signal 5)
-
-fetchOut :: Signal Out -> Signal (Vec MaxSize SegDisp)
-fetchOut = fetchSM `mealy` def
-
-fetchSM :: (Vec MaxSize QInt) -> Out -> (Vec MaxSize QInt, Vec MaxSize SegDisp)
-fetchSM state (Out (Just v) False    _) = (vec,    segV vec)
-    where vec = list v
-fetchSM state _ = (state, segV state)
