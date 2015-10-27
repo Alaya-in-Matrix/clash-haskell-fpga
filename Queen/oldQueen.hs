@@ -1,4 +1,4 @@
-module Queen where
+module OldQueen where
 
 import CLaSH.Prelude
 
