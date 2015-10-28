@@ -16,29 +16,29 @@ type Stack  = QVec (QVec QInt, QVec QInt)
 data QState = QS {
     boardSize :: Maybe Size
     , stack::Stack
-    , errFlag :: Bool
+    , flag :: Bool
 } deriving(Eq, Show)
 data QOut   = QOut {
     solution  :: Maybe (QVec QInt)
-    , errOut  :: Bool
+    , flagOut  :: Bool
 } deriving(Eq, Show)
 type QIn = Maybe Size
 
 instance Default QState where
     def = QS { boardSize = Nothing
              , stack   = def
-             , errFlag = False 
+             , flag = False 
              }
 instance Default QOut where
     def = QOut { solution  = Nothing
-               , errOut  = False 
+               , flagOut  = False 
                }
 
 
 -- After "Reset" is pressed, qsm waits for input, if input is Nothing, then continue waiting
 -- once the input is (Just size), then initialize state, and ignore further input
 queenMealyM :: QState -> QIn -> (QState, QOut)
-queenMealyM qs@(QS _       _  True)  _        = (def{errFlag=True},  def{errOut=True}) -- We got errors!
+queenMealyM qs@(QS _       _  True)  _        = (def{flag=True},  def{flagOut=True}) -- We got errors!
 queenMealyM qs@(QS Nothing _  False) Nothing  = (def,def)
 queenMealyM qs@(QS Nothing _  False) (Just s) = (initState, def)
   where initState = def{boardSize = Just s, stack = (def <~~ (def, QV indexVec s))}
@@ -60,8 +60,8 @@ queenMealyM qs@(QS (Just bSz) stack False) _
             | len qs' <  bSz && (len ps >  1) && (len ps' >  0) = (False, rest <~~ top' <~~ newtop)
             | otherwise = (True, def)
           out  
-            | len qs' == bSz = QOut{solution = Just qs', errOut = err}
-            | otherwise      = QOut{solution = Nothing,  errOut = err}
+            | len qs' == bSz = QOut{solution = Just qs', flagOut = err}
+            | otherwise      = QOut{solution = Nothing,  flagOut = err}
           state' = QS (Just bSz) stack' err
        in (state', out)
 
