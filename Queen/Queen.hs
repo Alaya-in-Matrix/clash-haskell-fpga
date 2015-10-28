@@ -39,8 +39,8 @@ instance Default QOut where
 -- once the input is (Just size), then initialize state, and ignore further input
 queenMealyM :: QState -> QIn -> (QState, QOut)
 queenMealyM qs@(QS _       _  True)  _        = (def{flag=True},  def{flagOut=True}) -- We got errors!
-queenMealyM qs@(QS Nothing _  False) Nothing  = (def,def)
-queenMealyM qs@(QS Nothing _  False) (Just s) = (initState, def)
+queenMealyM qs@(QS Nothing _  False) Nothing  = (def,def)                            -- waiting
+queenMealyM qs@(QS Nothing _  False) (Just s) = (initState, def)                     -- user set boardSize
   where initState = def{boardSize = Just s, stack = (def <~~ (def, QV indexVec s))}
 queenMealyM qs@(QS (Just bSz) stack False) _  
   | len stack == 0 = (def, def) -- finished
@@ -60,14 +60,15 @@ queenMealyM qs@(QS (Just bSz) stack False) _
             | len qs' <  bSz && (len ps >  1) && (len ps' >  0) = (False, rest <~~ top' <~~ newtop)
             | otherwise = (True, def)
           out  
-            | len qs' == bSz = QOut{solution = Just qs', flagOut = err}
-            | otherwise      = QOut{solution = Nothing,  flagOut = err}
+            | len qs' == bSz = QOut{solution = Just qs', flagOut = True}
+            | otherwise      = QOut{solution = Nothing,  flagOut = False}
           state' = QS (Just bSz) stack' err
        in (state', out)
 
 queens    = queenMealyM `mealy` def
-testIn    = foldr register (signal (Just 4 :: QIn)) $ replicate d10 Nothing
-topEntity = trans <$> queens testIn
+testIn1   = foldr register (signal (Just 5 :: QIn)) $ replicate d10 Nothing
+testIn2   = foldr register (signal Nothing) $ (replicate d20 Nothing) ++ (replicate d4 (Just 5 :: QIn))
+topEntity = trans <$> queens testIn2
     where trans :: QOut -> (Bool, Vec MaxSize SegDisp)
           trans (QOut Nothing  err) = (err, segV (def::Vec MaxSize QInt))
           trans (QOut (Just v) err) = (err, segV $ list v)
