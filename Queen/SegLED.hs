@@ -1,5 +1,6 @@
 module SegLED where
 import CLaSH.Prelude
+import QInt
 
 type SegDisp = Unsigned 8 -- type for display of seg
 

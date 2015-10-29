@@ -1,6 +1,7 @@
 module Queen where
 
 import CLaSH.Prelude
+import QInt
 import QVec
 import SegLED
 
