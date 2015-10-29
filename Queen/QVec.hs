@@ -36,9 +36,13 @@ push :: a -> QVec a -> QVec a  -- won't check full stack
 push ele (QV list len) = QV newList (len+1)
   where newList = replace len ele list
 
+idxConvert :: (Index 8) -> Size
+idxConvert idx = let tmp = unpack $ pack $ idx :: Unsigned 3
+                    in resize tmp
+
 hwFilterL :: (Default a) => (a->Bool)->QVec a-> QVec a
 hwFilterL pred qv@(QV list len) = 
-    let filtered = imap (\i e -> (len > fromIntegral i) && pred e) list
+    let filtered = imap (\i e -> (len > idxConvert i) && pred e) list
      in foldl (\qs (e,b) -> if b then qs <~~ e else qs) def $ zip list filtered
 
 qmap :: (a->b) -> QVec a -> QVec b
@@ -46,4 +50,4 @@ qmap f (QV v l) = QV (map f v) l
 
 qfoldl :: (a->b->a)->a->(QVec b)-> a
 qfoldl f x qv@(QV vec sz) = ifoldl newf x vec
-    where newf curr idx newv = if (fromIntegral idx) < sz then (f curr newv) else curr
+    where newf curr idx newv = if (idxConvert idx) < sz then (f curr newv) else curr
