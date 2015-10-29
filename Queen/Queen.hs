@@ -79,12 +79,12 @@ queensMoore = moore queenMooreS queenMooreO def
 -- After "Reset" is pressed, qsm waits for input, if input is Nothing, then continue waiting
 -- once the input is (Just size), then initialize state, and ignore further input
 queenMealyM :: QState -> QIn -> (QState, QOut)
-queenMealyM qs@(QS _       _  True)  _        = (def{flag=True},  def{flagOut=False}) -- We got errors!
+queenMealyM qs@(QS _       _  True)  _        = (def{flag=True},  def{flagOut=True}) -- We got errors!
 queenMealyM qs@(QS Nothing _  False) Nothing  = (def,def)                            -- waiting
 queenMealyM qs@(QS Nothing _  False) (Just s) = (initState, def)                     -- user set boardSize
   where initState = def{boardSize = Just s, stack = (def <~~ (def, QV indexVec s))}
 queenMealyM qs@(QS (Just bSz) stack False) _  
-  | len stack == 0 = (def, def) -- finished
+  | len stack == 0 = (def{flag = True}, def{flagOut = True}) -- finished
   | otherwise      =
       let (qs, ps) = top stack
           rest     = pop stack
@@ -92,7 +92,7 @@ queenMealyM qs@(QS (Just bSz) stack False) _
           ps'      = hwFilterL (safeAll qs') (QV indexVec bSz)
           top'     = (qs,pop ps)
           newtop   = (qs', ps')
-          (err, stack') 
+          (flag, stack') 
             | len qs' == bSz && (len ps == 1)                   = (False, rest)
             | len qs' == bSz && (len ps >  1)                   = (False, rest <~~ top')
             | len qs' <  bSz && (len ps == 1) && (len ps' == 0) = (False, rest)
@@ -101,15 +101,15 @@ queenMealyM qs@(QS (Just bSz) stack False) _
             | len qs' <  bSz && (len ps >  1) && (len ps' >  0) = (False, rest <~~ top' <~~ newtop)
             | otherwise = (True, def)
           out  
-            | len qs' == bSz = QOut{solution = Just qs', flagOut = if (15 == (qfoldl (+) 0 qs')) then True else False}
+            | len qs' == bSz = QOut{solution = Just qs', flagOut = False}
             | otherwise      = QOut{solution = Nothing,  flagOut = False}
-          state' = QS (Just bSz) stack' err
+          state' = QS (Just bSz) stack' flag
        in (state', out)
 
 queens    = queenMealyM `mealy` def
 testIn1   = foldr register (signal (Just 5 :: QIn)) $ replicate d10 Nothing
 testIn2   = foldr register (signal Nothing) $ (replicate d5 Nothing) ++ (replicate d4 (Just 5 :: QIn))
-topEntity = trans <$> queensMoore testIn2
+topEntity = trans <$> queens testIn2
     where trans :: QOut -> (Bool, Vec MaxSize SegDisp)
           trans (QOut Nothing  err) = (err, segV (def::Vec MaxSize QInt))
           trans (QOut (Just v) err) = (err, segV $ list v)
