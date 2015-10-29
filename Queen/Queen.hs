@@ -3,6 +3,7 @@ module Queen where
 import CLaSH.Prelude
 import QVec
 import SegLED
+import Debug.Trace
 
 
 safeAll :: QVec QInt -> QInt -> Bool
@@ -11,8 +12,9 @@ safeAll qv@(QV qlist qlen) p = foldl (&&) True $ zipped
         zipped = zipWith (safe qlen p) qlist indexVec
 
 safe :: Size -> QInt -> QInt -> QInt -> Bool
-safe qlen p q idx  = (idx > qlen) || (p /= q && (delta p q) /= (qlen - idx + 1))
+safe qlen p q idx = (idx >= qlen') || (p /= q && (delta p q) /= (qlen' - idx))
   where delta a b = max a b - min a b
+        qlen'     = resize qlen -- here, type of resize is (Unsigned 4 -> Unsigned 3), but my algorithm gurantees no error would occur
 
 type Stack  = QVec (QVec QInt, QVec QInt)
 data QState = QS {
@@ -114,6 +116,6 @@ topEntity = trans <$> queensMoore testIn2
           trans (QOut (Just v) err) = (err, segV $ list v)
 
 
-suck n = mapM_ print $ sampleN n topEntity
-fuck n = mapM_ print $ filter (ne63.snd) $ sampleN n topEntity
+suck n = mapM_ (print . (map segDecoder) . snd) $ sampleN n topEntity
+fuck n = mapM_ (print . (map segDecoder) . snd) $ filter (ne63.snd) $ sampleN n topEntity
     where ne63 = (/= (repeat 63))

@@ -7,21 +7,22 @@ import SegLED
 q <~~ e = push e q -- won't check index violation
 
 type MaxSize = 8 -- denote the max size allowed for a vertor(list)
-type Size    = Unsigned 8 -- size of QVec
-type QInt    = Unsigned 8 -- regular int 
+type Size    = Unsigned 4 -- size of QVec
+type QInt    = Unsigned 3 -- regular int 
 indexVec :: Vec MaxSize QInt
-indexVec = 1:>2:>3:>4:>5:>6:>7:>8:>Nil
+indexVec = 0:>1:>2:>3:>4:>5:>6:>7:>Nil
 
 data QVec a  = QV {
     list  :: Vec MaxSize a
     , len :: Size
 } deriving(Eq)
-
+ 
 instance (Default a) => Default (QVec a) where
     def = QV def 0
 
 instance (Show a) => Show (QVec a) where
     show (QV vec len) = "QVec " +++ (show $ L.take (fromIntegral len) (toList vec))
+
 isEmpty :: QVec a -> Bool
 isEmpty v = len v == 0
 
