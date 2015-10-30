@@ -22,7 +22,7 @@ data QState = QS {
     , flag :: Bool
 } deriving(Eq, Show)
 data QOut   = QOut {
-    solution  :: Maybe (QVec QInt)
+    solution  :: Maybe (Vec MaxSize QInt)
     , flagOut  :: Bool
 } deriving(Eq, Show)
 type QIn = Maybe Size
@@ -70,7 +70,7 @@ queenMooreO qst@(QS (Just bs) s False)
     | otherwise =
         let (qs, ps) = top s
          in if (len qs == (bs - 1)) 
-               then def{solution = (Just (qs <~~ (top ps)))}
+               then def{solution = (list <$> Just (qs <~~ (top ps)))}
                else def
 
 queensMoore = moore queenMooreS queenMooreO def
@@ -101,18 +101,19 @@ queenMealyM qs@(QS (Just bSz) stack False) _
             | len qs' <  bSz && (len ps >  1) && (len ps' >  0) = (False, rest <~~ top' <~~ newtop)
             | otherwise = (True, def)
           out  
-            | len qs' == bSz = QOut{solution = Just qs', flagOut = False}
+            | len qs' == bSz = QOut{solution = Just (list qs'), flagOut = False}
             | otherwise      = QOut{solution = Nothing,  flagOut = False}
           state' = QS (Just bSz) stack' flag
        in (state', out)
 
-queens    = queenMealyM `mealy` def
+queensMealy    = queenMealyM `mealy` def
+
 testIn1   = foldr register (signal (Just 5 :: QIn)) $ replicate d10 Nothing
 testIn2   = foldr register (signal Nothing) $ (replicate d5 Nothing) ++ (replicate d4 (Just 5 :: QIn))
-topEntity = trans <$> queens testIn2
+topEntity = trans <$> queensMealy testIn2
     where trans :: QOut -> (Bool, Vec MaxSize SegDisp)
           trans (QOut Nothing  err) = (err, segV (def::Vec MaxSize QInt))
-          trans (QOut (Just v) err) = (err, segV $ list v)
+          trans (QOut (Just v) err) = (err, segV v)
 
 
 suck n = mapM_ print $ sampleN n topEntity
