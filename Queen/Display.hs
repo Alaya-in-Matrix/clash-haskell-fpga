@@ -1,4 +1,4 @@
-module SegLED where
+module Display where
 import CLaSH.Prelude
 import QInt
 

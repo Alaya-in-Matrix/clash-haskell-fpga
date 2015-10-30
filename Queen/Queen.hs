@@ -3,7 +3,7 @@ module Queen where
 import CLaSH.Prelude
 import QInt
 import QVec
-import SegLED
+import Display
 
 
 safeAll :: QVec QInt -> QInt -> Bool
