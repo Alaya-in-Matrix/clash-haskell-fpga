@@ -22,8 +22,8 @@ isEmpty v = len v == 0
 top :: QVec a -> a -- won't check empty stack
 top qv = (list qv) !! (len qv - 1)
 
-pop :: QVec a -> QVec a  -- won't check empty stack
-pop (QV list len) = QV list (len - 1)
+pop :: (Default a) => QVec a -> QVec a  -- won't check empty stack
+pop (QV list len) = QV (replace (len-1) def list) (len - 1)
 
 push :: a -> QVec a -> QVec a  -- won't check full stack
 push ele (QV list len) = QV newList (len+1)
