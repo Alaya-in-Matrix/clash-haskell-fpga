@@ -111,19 +111,26 @@ queensMealy    = queenMealyM `mealy` def
 testIn1 = foldr register (signal (Just 5 :: QIn)) $ replicate d10 Nothing
 testIn2 = foldr register (signal Nothing) $ (replicate d5 Nothing) ++ (replicate d4 (Just 5 :: QIn))
 
+testInput = register invalid $ register invalid $ register (True, True, False, True, True) $ signal invalid
+    where invalid = (True, True, True, True, True)
 
-testInput = stimuliGenerator $(v [True,True, True, False, False, False, True, True, True, True, True])
+topEntity :: Signal (Bool,Bool,Bool,Bool,Bool) -> Signal (Bool, Vec 5 SegDisp)
+topEntity input = trans <$> queensMealy (transIn <$> input)
+  where trans (QOut Nothing  flag) = (flag,(takeI.segV) (def::Vec MaxSize QInt))
+        trans (QOut (Just v) flag) = (flag,(takeI.segV) v)
+        transIn :: (Bool,Bool,Bool,Bool,Bool) -> QIn
+        transIn (b4, b5, b6, b7, b8) = case (b4, b5, b6, b7, b8) of
+                                         (False, True, True, True, True) -> Just 4
+                                         (True, False, True, True, True) -> Just 5
+                                         (True, True, False, True, True) -> Just 6
+                                         (True, True, True, False, True) -> Just 7
+                                         (True, True, True, True, False) -> Just 8
+                                         _                               -> Nothing 
 
-topEntity :: Signal Bool -> Signal (Vec 5 SegDisp)
-topEntity input = (segV.takeI.trans) <$> queensMealy (transIn <$> input)
-  where trans (QOut Nothing  _) = def
-        trans (QOut (Just v) _) = v
-        transIn False = Just 5
-        transIn True  = Nothing
+fuck n = mapM_ print $ filter pred $ sampleN n $ topEntity testInput
+  where pred (b,sol) = sol /= (repeat 63)
 
 -- topEntity = trans <$> queensMealy testIn2
 --     where trans :: QOut -> (Bool, Vec MaxSize SegDisp)
 --           trans (QOut Nothing  err) = (err, segV (def::Vec MaxSize QInt))
 --           trans (QOut (Just v) err) = (err, segV v)
-
-
