@@ -19,3 +19,4 @@ segEncoder n = case n of
                  _ -> 0b00111111
 
 segV = map segEncoder
+
