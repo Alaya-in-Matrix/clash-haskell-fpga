@@ -109,7 +109,7 @@ queenMealyM qs@(QS (Just bSz) stack False) _
 queensMealy    = queenMealyM `mealy` def
 
 testIn1   = foldr register (signal (Just 5 :: QIn)) $ replicate d10 Nothing
-testIn2   = foldr register (signal Nothing) $ (replicate d5 Nothing) ++ (replicate d4 (Just 5 :: QIn))
+testIn2   = foldr register (signal Nothing) $ (replicate d5 Nothing) ++ (replicate d4 (Just 4 :: QIn))
 topEntity = trans <$> queensMealy testIn2
     where trans :: QOut -> (Bool, Vec MaxSize SegDisp)
           trans (QOut Nothing  err) = (err, segV (def::Vec MaxSize QInt))

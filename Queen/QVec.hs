@@ -29,10 +29,19 @@ push :: a -> QVec a -> QVec a  -- won't check full stack
 push ele (QV list len) = QV newList (len+1)
   where newList = replace len ele list
 
-hwFilterL :: (Default a) => (a->Bool)->QVec a-> QVec a
-hwFilterL pred qv@(QV list len) = 
-    let filtered = imap (\i e -> (len > fromIntegral i) && pred e) list
-     in foldl (\qs (e,b) -> if b then qs <~~ e else qs) def $ zip list filtered
+-- hwFilterL :: (Default a) => (a->Bool)->QVec a-> QVec a
+-- hwFilterL pred qv@(QV list len) = 
+--     let filtered = imap (\i e -> (len > fromIntegral i) && pred e) list
+--      in foldl (\qs (e,b) -> if b then qs <~~ e else qs) def $ zip list filtered
+
+zipFilter :: (Default a) => (a -> Bool) -> QVec a -> (Vec MaxSize (a,Bool))
+zipFilter pred qv@(QV qlist qlen) = zipWith zipPred qlist indexVec
+  where zipPred e i = (e, (i <= qlen && pred e))
+
+foldlFilter zipped = foldl (\qs (e,b) -> if b then (qs <~~ e) else qs) def zipped
+
+hwFilterL :: (Default a) => (a -> Bool) -> QVec a -> QVec a
+hwFilterL pred = foldlFilter . (zipFilter pred)
 
 qmap :: (a->b) -> QVec a -> QVec b
 qmap f (QV v l) = QV (map f v) l
