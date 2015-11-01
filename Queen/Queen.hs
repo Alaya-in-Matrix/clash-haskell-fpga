@@ -108,16 +108,19 @@ queenMealyM qs@(QS (Just bSz) stack False) _
 
 queensMealy    = queenMealyM `mealy` def
 
-testIn1   = foldr register (signal (Just 5 :: QIn)) $ replicate d10 Nothing
-testIn2   = foldr register (signal Nothing) $ (replicate d5 Nothing) ++ (replicate d4 (Just 4 :: QIn))
+testIn1 = foldr register (signal (Just 5 :: QIn)) $ replicate d10 Nothing
+testIn2 = foldr register (signal Nothing) $ (replicate d5 Nothing) ++ (replicate d4 (Just 5 :: QIn))
 
 
-testInput = testIn2
+testInput = stimuliGenerator $(v [True,True, True, False, False, False, True, True, True, True, True])
 
-topEntity :: Signal QIn -> Signal (Vec MaxSize QInt)
-topEntity input = trans <$> queensMealy input
+topEntity :: Signal Bool -> Signal (Vec 5 SegDisp)
+topEntity input = (segV.takeI.trans) <$> queensMealy (transIn <$> input)
   where trans (QOut Nothing  _) = def
         trans (QOut (Just v) _) = v
+        transIn False = Just 5
+        transIn True  = Nothing
+
 -- topEntity = trans <$> queensMealy testIn2
 --     where trans :: QOut -> (Bool, Vec MaxSize SegDisp)
 --           trans (QOut Nothing  err) = (err, segV (def::Vec MaxSize QInt))
