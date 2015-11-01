@@ -110,12 +110,17 @@ queensMealy    = queenMealyM `mealy` def
 
 testIn1   = foldr register (signal (Just 5 :: QIn)) $ replicate d10 Nothing
 testIn2   = foldr register (signal Nothing) $ (replicate d5 Nothing) ++ (replicate d4 (Just 4 :: QIn))
-topEntity = trans <$> queensMealy testIn2
-    where trans :: QOut -> (Bool, Vec MaxSize SegDisp)
-          trans (QOut Nothing  err) = (err, segV (def::Vec MaxSize QInt))
-          trans (QOut (Just v) err) = (err, segV v)
 
 
-suck n = mapM_ print $ sampleN n topEntity
-fuck n = mapM_ print $ filter (ne63.snd) $ sampleN n topEntity
-    where ne63 = (/= (repeat 63))
+testInput = testIn2
+
+topEntity :: Signal QIn -> Signal (Vec MaxSize QInt)
+topEntity input = trans <$> queensMealy input
+  where trans (QOut Nothing  _) = def
+        trans (QOut (Just v) _) = v
+-- topEntity = trans <$> queensMealy testIn2
+--     where trans :: QOut -> (Bool, Vec MaxSize SegDisp)
+--           trans (QOut Nothing  err) = (err, segV (def::Vec MaxSize QInt))
+--           trans (QOut (Just v) err) = (err, segV v)
+
+
