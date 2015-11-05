@@ -57,6 +57,16 @@ queensMealy = queenMealyM `mealy` def
 testInput = register invalid $ register invalid $ register (True, True, True, False, True) $ signal invalid
     where invalid = (True, True, True, True, True)
 
+{-# ANN topEntity
+  (defTop
+     { t_name    = "Queen"
+     , t_inputs  = [ "b4", "b5", "b6", "b7", "b8", "b9"]
+     , t_outputs = [ "finished"
+                   , "digit0"
+                   , "digit1"
+                   , "digit2"
+                   , "digit3"
+                   , "digit4" ] }) #-}
 topEntity :: Signal (Bool,Bool,Bool,Bool,Bool) -> Signal (Bool, Vec 5 SegDisp)
 topEntity input = trans <$> queensMealy (transIn <$> input)
   where trans (QOut Nothing  flag)   = (flag,(takeI.segV) (def::Vec MaxSize QInt))
@@ -70,6 +80,6 @@ topEntity input = trans <$> queensMealy (transIn <$> input)
                                          _                               -> Nothing 
 
 
-fuck n = mapM_ print $ fmap (segDecoder.snd) $ filter pred $ sampleN n $ topEntity testInput
+fuck n = mapM_ print $ filter pred $ sampleN n $ topEntity testInput
   where pred (b,sol) = sol /= (repeat 63)
 
