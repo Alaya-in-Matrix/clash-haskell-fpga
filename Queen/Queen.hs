@@ -6,12 +6,12 @@ import QVec
 import Display
 
 safeAll :: QVec QInt -> QInt -> Bool
-safeAll qv@(QV qlist qlen) p = foldl (&&) True $ zipped
+safeAll qv@(QV qlist qlen) p = foldl (&&) True zipped
   where zipped :: Vec MaxSize Bool
         zipped = zipWith (safe qlen p) qlist indexVec
 
 safe :: Size -> QInt -> QInt -> QInt -> Bool
-safe qlen p q idx  = (idx > qlen) || (p /= q && (delta p q) /= (qlen - idx + 1))
+safe qlen p q idx  = (idx > qlen) || (p /= q && delta p q /= (qlen - idx + 1))
   where delta a b = max a b - min a b
 
 type Stack  = QVec (QVec QInt, QVec QInt)
@@ -28,13 +28,13 @@ queenMealyM :: QState -> QIn -> (QState, QOut)
 queenMealyM qs@(QS _       _  True)  _        = (def{flag=True},  def{flagOut=True}) -- Finished!
 queenMealyM qs@(QS Nothing _  False) Nothing  = (def,def)                            -- waiting
 queenMealyM qs@(QS Nothing _  False) (Just s) = (initState, def)                     -- user initialize boardSize
-  where initState = def{boardSize = Just s, stack = (def <~~ (def, QV indexVec s))}
+  where initState = def{boardSize = Just s, stack = def <~~ (def, QV indexVec s)}
 queenMealyM qs@(QS (Just bSz) stack False) _  
   | len stack == 0 = (def{flag = True}, def{flagOut = True}) -- finished
   | otherwise      =
       let (qs, ps) = top stack
           rest     = pop stack
-          qs'      = qs <~~ (top ps)
+          qs'      = qs <~~ top ps
           ps'      = hwFilterL (safeAll qs') (QV indexVec bSz)
           top'     = (qs,pop ps)
           newtop   = (qs', ps')
@@ -81,5 +81,5 @@ topEntity input = trans <$> queensMealy (transIn <$> input)
 
 
 fuck n = mapM_ print $ filter pred $ sampleN n $ topEntity testInput
-  where pred (b,sol) = sol /= (repeat 63)
+  where pred (b,sol) = sol /= repeat 63
 
