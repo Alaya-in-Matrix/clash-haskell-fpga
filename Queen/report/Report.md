@@ -2,7 +2,7 @@
 
 * Author: [wenlonglv14@fudan.edu.cn](mailto:wenlonglv14@fudan.edu.cn)
 * Student ID: 14210720082
-* Last Modified:2015年11月07日 星期六 22时31分47秒 六
+* Last Modified:2015年11月07日 星期六 23时07分14秒 六
 
 [TOC]
 
@@ -310,11 +310,15 @@ instance Default QOut where
 
 ```haskell
 queenMealyM :: QState -> QIn -> (QState, QOut)
-queenMealyM qs@(QS _       _  True)  _        = (def{flag=True},  def{flagOut=True}) -- Finished!
-queenMealyM qs@(QS Nothing _  False) Nothing  = (def,def)                            -- waiting
-queenMealyM qs@(QS Nothing _  False) (Just s) = (initState, def)                     -- user initialize boardSize
+-- Finished!
+queenMealyM qs@(QS _       _  True)  _        = (def{flag=True},  def{flagOut=True}) 
+-- waiting
+queenMealyM qs@(QS Nothing _  False) Nothing  = (def,def)                            
+-- user initialize boardSize
+queenMealyM qs@(QS Nothing _  False) (Just s) = (initState, def)                     
   where initState = def{boardSize = Just s, stack = def <~~ (def, QV indexVec s)}
-queenMealyM qs@(QS (Just bSz) stack False) _                                         -- searching
+-- searching
+queenMealyM qs@(QS (Just bSz) stack False) _                                         
   | len stack == 0 = (def{flag = True}, def{flagOut = True}) -- finished
   | otherwise      =
       let (qs, ps) = top stack
@@ -356,7 +360,7 @@ queensMealy = queenMealyM `mealy` def
 
 在设计时, 有时在Haskell自己的测试环境下测试通过, 生成的verilog(电路设计代码+testbench)在modelsim下也仿真通过, 但是生成的bit文件仍然会出现异常. 例如, 5皇后问题的解总是与实际正确解相差一个bit, 即1(0001)显示为5(1001), 0(0000)显示为4(1000), 4(1000)显示为5(1001),2(0010)显示为3(0011). 后来发现, route时采用breadth first模式, 电路可以正常工作. 不过这也让route的时间大大增加. 最终, 完成依次route需要近一小时, 这也使得debug或者更改设计成本极大. 
 
-本次设计的输出借口比较简单, 每当找到一个解, 就直接在七段数码管上显示, 并且因为FDE开发板对管脚数量有限制, 只放了5个数码管, 对于棋盘大小大于5的情况, 也只能显示每个解中前5列的摆放. 并且在输出端没有放置分频器, 因此只能以较低时钟频率显示. 这也使得演示较大棋盘的搜索过程更加困难, 因为对N=8的过程, 有92个解, 而总共耗费1965个时钟周期, 而对N=4, 只需要十几个周期就可以完成搜索, 如果要加分频器, 则必须对不同的棋盘设置不同的分频系数. 
+本次设计的输出接口比较简单, 每当找到一个解, 就直接在七段数码管上显示, 并且因为FDE开发板对管脚数量有限制, 只放了5个数码管, 对于棋盘大小大于5的情况, 也只能显示每个解中前5列的摆放. 并且在输出端没有放置分频器, 因此只能以较低时钟频率显示. 这也使得演示较大棋盘的搜索过程更加困难, 因为对N=8的过程, 有92个解, 而总共耗费1965个时钟周期, 而对N=4, 只需要十几个周期就可以完成搜索, 如果要加分频器, 则必须对不同的棋盘设置不同的分频系数. 
 
 一个更理想的做法, 应该是增加一块存储模块. 应该是在搜寻过程中, 以较高时钟频率搜索, 每找到一个解, 就将这个解存储, 待整个搜索过程完成后, 再以一个分频器从存储器中读数据显示, 此时可以采用诸如扫描管或者matrix这些更理想的显示方式. 之所以没有这样做, 是因为对于较大的棋盘(N=8), 使用寄存器存储则电路规模太大. 虽然FDE开发环境提供了Ram Generator, 但是因为时间关系, 没有实现. 
  
